@@ -13,18 +13,27 @@ export async function uptimeAlertWorkflow({ payload, engineerMention, timestamp 
   const heartbeatStatus = payload.heartbeat?.status;
   const msgText = (payload.msg || payload.heartbeat?.msg || '').toLowerCase();
 
-  const isDown = heartbeatStatus === 0 || msgText.includes('down') || msgText.includes('fail');
+  const isDown = heartbeatStatus === 0 || msgText.includes('down') || msgText.includes('fail') || msgText.includes('expire');
   const isTest = msgText.includes('testing') || (!payload.heartbeat && !msgText.includes('up'));
 
-  const siteUrl = payload.monitor?.url || 'https://google.com';
-  const monitorName = payload.monitor?.name || 'Production Service';
   const rawErrorMsg = payload.heartbeat?.msg || payload.msg || (isDown ? 'Service Down / Timeout' : 'HTTP 200 OK');
+
+  // Ekstrak domain dari pesan jika payload.monitor kosong (kasus Domain/SSL Expiry)
+  const domainMatch = rawErrorMsg.match(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/);
+  const extractedDomain = domainMatch ? domainMatch[1] : null;
+
+  const siteUrl = payload.monitor?.url 
+    || (extractedDomain ? `https://${extractedDomain}` : 'https://google.com');
+
+  const monitorName = payload.monitor?.name 
+    || (extractedDomain ? `Domain/SSL Alert (${extractedDomain})` : 'Production Service');
 
   // Step 1: Jalankan Activity Capture & Upload
   const { imageUrl, pageStatusCode } = await captureAndUpload(siteUrl);
 
+  // Hilangkan kata "Puppeteer" & tampilkan HTTP status hanya jika >= 400
   const displayErrorMsg = (isDown || isTest)
-    ? `${rawErrorMsg} (Puppeteer HTTP Status: ${pageStatusCode})`
+    ? (pageStatusCode >= 400 ? `${rawErrorMsg} (HTTP ${pageStatusCode})` : rawErrorMsg)
     : 'HTTP 200 OK / Service Operational';
 
   // Step 2: Susun SRE Card Payload (Persis seperti kodemu)
