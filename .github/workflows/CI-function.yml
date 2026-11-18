@@ -3,8 +3,8 @@ name: CI Test - Temporal Middleware
 on:
   push:
     branches: 
-       - **/hotfix
-       - **/feature
+       - "**/hotfix"
+       - "**/feature"
        
   pull_request:
     branches: [ main ]
