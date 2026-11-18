@@ -1,0 +1,42 @@
+name: CI Test - Temporal Middleware
+
+on:
+  push:
+    branches: 
+       - **/hotfix
+       - **/feature
+       
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: 1. Syntax Check (Node.js)
+        run: |
+          node --check middle-server.js
+          node --check workflows.js
+          node --check activities.js
+          node --check worker.js
+
+      - name: 2. Dry-Run Temporal Workflow Bundler
+        run: |
+          node -e "
+            import('@temporalio/worker').then(async ({ bundleWorkflowCode }) => {
+              await bundleWorkflowCode({ workflowsPath: './workflows.js' });
+              console.log('✅ Temporal Workflow bundle valid!');
+            });
+          "
