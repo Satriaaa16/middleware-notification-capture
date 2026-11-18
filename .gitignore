@@ -3,3 +3,5 @@ config.json
 *.png
 *config
 *temporal**
+*.db
+temporal-state.db*
